@@ -22,6 +22,12 @@ jobs:
         with:
           channel: stable
 
+      - name: Regenerate Android project
+        run: |
+          rm -rf android
+          flutter create . --platforms android
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
+
       - run: flutter pub get
       - run: flutter build apk --release
 
