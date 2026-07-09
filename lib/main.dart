@@ -14,9 +14,6 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (Platform.isAndroid) {
-    await AndroidWebViewController.platform;
-  }
   runApp(const MaterialApp(home: AppBuilderHome()));
 }
 
@@ -184,10 +181,11 @@ class _AppBuilderHomeState extends State<AppBuilderHome> {
 
     final tempDir = await getTemporaryDirectory();
     final zipPath = "${tempDir.path}/${_projectData!['project_name']}_build.zip";
-    final outputStream = File(zipPath).openWrite();
     final encoder = ZipEncoder();
-    encoder.encode(archive, outputStream);
-    await outputStream.close();
+    final bytes = encoder.encode(archive);
+    if (bytes != null) {
+      File(zipPath).writeAsBytesSync(bytes);
+    }
 
     await Share.shareXFiles([XFile(zipPath)], text: "Berikut source code aplikasi ${_projectData!['project_name']}");
     if (mounted) {
