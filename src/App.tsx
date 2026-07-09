@@ -554,7 +554,7 @@ export default function App() {
         description: "Browser App",
         mainDart: TEMPLATE_BROWSER_DART,
         pubspec: DEFAULT_PUBSPEC,
-        type: "counter"
+        type: "browser"
       },
       {
         id: "todo",
@@ -1498,6 +1498,8 @@ export default function App() {
   // Simulated active app elements inside the mobile preview frame
   const renderInteractivePreview = () => {
     switch (activeProject.type) {
+      case "browser":
+        return <BrowserAppPreview code={activeProject.mainDart} />;
       case "counter":
         return <CounterAppPreview code={activeProject.mainDart} />;
       case "todo":
@@ -2967,6 +2969,19 @@ function CounterAppPreview({ code }: { code: string }) {
             +
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function BrowserAppPreview({ code }: { code: string }) {
+  return (
+    <div className="flex-1 flex flex-col bg-slate-50 h-full font-sans select-none">
+      <div className="h-14 bg-blue-600 text-white px-4 flex items-center justify-between shadow-sm">
+        <span className="text-xs font-bold tracking-wide">Browser App</span>
+      </div>
+      <div className="flex-1 flex items-center justify-center text-slate-400 text-xs">
+        Browser Preview (WebView not supported in web preview)
       </div>
     </div>
   );
