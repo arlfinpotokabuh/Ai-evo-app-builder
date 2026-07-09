@@ -1,4 +1,5 @@
-name: Build APK
+with open(".github/workflows/build_apk.yml", "w") as f:
+    f.write("""name: Build APK
 
 on:
   push:
@@ -26,7 +27,7 @@ jobs:
               <uses-permission android:name="android.permission.INTERNET" />
               <application
                   android:label="AI Evo App Builder"
-                  android:name="${applicationName}"
+                  android:name="\\${applicationName}"
                   android:icon="@mipmap/ic_launcher">
                   <activity
                       android:name=".MainActivity"
@@ -56,7 +57,7 @@ jobs:
               }
               settings.ext.flutterSdkPath = flutterSdkPath()
           
-              includeBuild("${settings.ext.flutterSdkPath}/packages/flutter_tools/gradle")
+              includeBuild("\\${settings.ext.flutterSdkPath}/packages/flutter_tools/gradle")
           
               repositories {
                   google()
@@ -84,7 +85,7 @@ jobs:
           
           rootProject.buildDir = '../build'
           subprojects {
-              project.buildDir = "${rootProject.buildDir}/${project.name}"
+              project.buildDir = "\\${rootProject.buildDir}/\\${project.name}"
           }
           subprojects {
               project.evaluationDependsOn(':app')
@@ -100,3 +101,4 @@ jobs:
         with:
           name: app-release
           path: build/app/outputs/flutter-apk/app-release.apk
+""")
