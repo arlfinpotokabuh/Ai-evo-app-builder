@@ -1,0 +1,6 @@
+{
+  "name": "AI Evo App Builder",
+  "description": "AI-powered Flutter application builder with real-time preview and APK export capabilities.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
