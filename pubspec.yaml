@@ -1,5 +1,6 @@
 name: ai_evo_app_builder
 description: AI Evo App Builder
+# App builder configuration
 version: 1.0.0+1
 
 environment:

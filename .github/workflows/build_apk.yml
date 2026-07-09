@@ -1,5 +1,6 @@
 name: Build APK
 
+# Re-trigger Github sync
 on:
   push:
     branches: [ main ]
