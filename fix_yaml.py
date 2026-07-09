@@ -1,4 +1,5 @@
-name: Build APK
+with open(".github/workflows/build_apk.yml", "w") as f:
+    f.write("""name: Build APK
 
 on:
   push:
@@ -20,10 +21,11 @@ jobs:
         run: |
           rm -rf android
           flutter create . --platforms android
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
+          sed -i '/<application/i \\    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
       - run: flutter pub get
       - run: flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
           name: app-release
           path: build/app/outputs/flutter-apk/app-release.apk
+""")
