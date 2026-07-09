@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:path/path.dart';
+import 'package:path/path.dart' as p;
 import 'dart:convert';
 import 'dart:io';
 import 'package:archive/archive.dart';
@@ -16,9 +16,6 @@ import 'package:sqflite/sqflite.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (Platform.isAndroid) {
-    await AndroidWebViewController.platform;
-  }
   runApp(const MaterialApp(home: AppBuilderHome()));
 }
 
@@ -67,7 +64,7 @@ class _AppBuilderHomeState extends State<AppBuilderHome> {
   Future<void> _initDatabase() async {
     try {
       Directory documentsDirectory = await getApplicationDocumentsDirectory();
-      String path = join(documentsDirectory.path, 'projects.db');
+      String path = p.join(documentsDirectory.path, 'projects.db');
       _db = await openDatabase(path, version: 1,
           onCreate: (Database db, int version) async {
         await db.execute(

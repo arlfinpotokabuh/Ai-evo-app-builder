@@ -1,0 +1,38 @@
+RANGKUMAN SPESIFIKASI MINIMUM UNTUK BERHASIL BUILD APK
+=====================================================
+
+Berikut adalah spesifikasi minimum terbaru yang stabil dan kompatibel untuk membangun (build) APK Android pada proyek "AI Evo Studio" ini, menghindari semua isu compileSdk/targetSdk ataupun konflik dependensi:
+
+1. Spesifikasi Lingkungan Build (GitHub Actions):
+   - Runner OS: ubuntu-latest
+   - Versi Java: Java 17 (Zulu distribution)
+   - Flutter Channel: stable (v3.22.x / v3.24.x)
+   - Gradle Version (di settings.gradle): 8.7.0 (kompatibel dengan Java 17)
+   - Kotlin Version (di settings.gradle): 1.9.24
+
+2. Konfigurasi SDK Android:
+   - compileSdkVersion: >= 34 (direkomendasikan 34 atau 36 untuk menyelaraskan dengan dependensi AndroidX terbaru)
+   - targetSdkVersion: >= 34
+   - minSdkVersion: 24 (atau minimal 21)
+
+3. Daftar Dependensi pubspec.yaml yang Kompatibel & Stabil:
+   ```yaml
+   dependencies:
+     flutter:
+       sdk: flutter
+     http: ^1.1.0
+     webview_flutter: ^4.8.0
+     shared_preferences: ^2.3.2
+     uuid: ^4.2.1
+     share_plus: ^10.0.0     # Memerlukan compileSdk >= 34
+     path_provider: ^2.1.4
+     archive: ^3.4.10
+     in_app_purchase: ^3.2.0
+     intl: ^0.19.0
+     sqflite: ^2.3.3         # Untuk penyimpanan lokal database proyek
+     path: ^1.9.0            # Wajib untuk path handling di database sqflite (diimport as p)
+   ```
+
+4. Perbaikan Utama pada Kode Sumber (lib/main.dart):
+   - Menghindari konflik shadowing dari variable `context` dengan mengimport package path sebagai `import 'package:path/path.dart' as p;` dan menggunakan `p.join(...)`.
+   - Menghapus pemanggilan manual platform-specific `AndroidWebViewController.platform` yang usang dan menyebabkan error "Undefined name 'AndroidWebViewController'".
