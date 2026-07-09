@@ -32,8 +32,10 @@ import {
   HardDrive,
   Gauge,
   Sliders,
-  Github
+  Github,
+  MessageSquare
 } from "lucide-react";
+import AiStudioAppsDashboard from "./components/AiStudioAppsDashboard";
 
 // Project Type definitions
 interface Project {
@@ -58,6 +60,53 @@ interface Message {
 }
 
 // Default flutter templates
+const TEMPLATE_BROWSER_DART = `import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+
+void main() => runApp(const BrowserApp());
+
+class BrowserApp extends StatelessWidget {
+  const BrowserApp({super.key});
+  @override
+  Widget build(BuildContext context) => const MaterialApp(home: BrowserScreen());
+}
+
+class BrowserScreen extends StatefulWidget {
+  const BrowserScreen({super.key});
+  @override
+  State<BrowserScreen> createState() => _BrowserScreenState();
+}
+
+class _BrowserScreenState extends State<BrowserScreen> {
+  late WebViewController _controller;
+  final TextEditingController _urlController = TextEditingController(text: 'https://flutter.dev');
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..loadRequest(Uri.parse('https://flutter.dev'));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: TextField(
+          controller: _urlController,
+          decoration: const InputDecoration(hintText: 'Enter URL', border: InputBorder.none),
+          onSubmitted: (value) => _controller.loadRequest(Uri.parse(value.startsWith('http') ? value : 'https://$value')),
+        ),
+        actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: () => _controller.reload()),
+        ],
+      ),
+      body: WebViewWidget(controller: _controller),
+    );
+  }
+}
+`;
 const TEMPLATE_COUNTER_DART = `import 'package:flutter/material.dart';
 
 void main() {
@@ -488,48 +537,102 @@ dependencies:
   path: ^1.9.0`;
 
 export default function App() {
-  // Global states
-  const [projects, setProjects] = useState<Project[]>([
-    {
-      id: "counter",
-      name: "Smart Counter App",
-      description: "Interactive digital counter with increment, decrement, and custom resets.",
-      mainDart: TEMPLATE_COUNTER_DART,
-      pubspec: DEFAULT_PUBSPEC,
-      type: "counter"
-    },
-    {
-      id: "todo",
-      name: "Evo Task List",
-      description: "A collaborative task list manager styled in standard Material Design.",
-      mainDart: TEMPLATE_TODO_DART,
-      pubspec: DEFAULT_PUBSPEC,
-      type: "todo"
-    },
-    {
-      id: "weather",
-      name: "Live Weather Widget",
-      description: "A gorgeous weather forecasting dashboard supporting active queries.",
-      mainDart: TEMPLATE_WEATHER_DART,
-      pubspec: DEFAULT_PUBSPEC,
-      type: "weather"
-    },
-    {
-      id: "calculator",
-      name: "Matte Black Calculator",
-      description: "Fully interactive math computing grid styled like an elegant handheld calculator.",
-      mainDart: TEMPLATE_CALCULATOR_DART,
-      pubspec: DEFAULT_PUBSPEC,
-      type: "calculator"
+  // Global states (client-side persisted)
+  const [projects, setProjects] = useState<Project[]>(() => {
+    const saved = localStorage.getItem("ai_evo_projects");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Error parsing saved projects", e);
+      }
     }
-  ]);
+    return [
+      {
+        id: "counter",
+        name: "Browser App",
+        description: "Browser App",
+        mainDart: TEMPLATE_BROWSER_DART,
+        pubspec: DEFAULT_PUBSPEC,
+        type: "counter"
+      },
+      {
+        id: "todo",
+        name: "Evo Task List",
+        description: "A collaborative task list manager styled in standard Material Design.",
+        mainDart: TEMPLATE_TODO_DART,
+        pubspec: DEFAULT_PUBSPEC,
+        type: "todo"
+      },
+      {
+        id: "weather",
+        name: "Live Weather Widget",
+        description: "A gorgeous weather forecasting dashboard supporting active queries.",
+        mainDart: TEMPLATE_WEATHER_DART,
+        pubspec: DEFAULT_PUBSPEC,
+        type: "weather"
+      },
+      {
+        id: "calculator",
+        name: "Matte Black Calculator",
+        description: "Fully interactive math computing grid styled like an elegant handheld calculator.",
+        mainDart: TEMPLATE_CALCULATOR_DART,
+        pubspec: DEFAULT_PUBSPEC,
+        type: "calculator"
+      }
+    ];
+  });
 
-  const [activeProjectId, setActiveProjectId] = useState<string>("counter");
+  const [activeProjectId, setActiveProjectId] = useState<string>(() => {
+    return localStorage.getItem("ai_evo_active_project_id") || "counter";
+  });
+
   const [activeTab, setActiveTab] = useState<"preview" | "code" | "pubspec" | "github" | "hardware">("preview");
 
-  // Model & AI Parameter Settings
-  const [selectedModel, setSelectedModel] = useState<string>("gemini-3.5-flash");
-  const [temperature, setTemperature] = useState<number>(0.7);
+  const [viewMode, setViewMode] = useState<"playground" | "dashboard">(() => {
+    return (localStorage.getItem("ai_evo_view_mode") as "playground" | "dashboard") || "dashboard";
+  });
+
+  const [mobileActiveTab, setMobileActiveTab] = useState<"chat" | "preview" | "sidebar">("preview");
+
+  useEffect(() => {
+    localStorage.setItem("ai_evo_view_mode", viewMode);
+  }, [viewMode]);
+
+  // Model & AI Parameter Settings (client-side persisted)
+  const [selectedModel, setSelectedModel] = useState<string>(() => localStorage.getItem("ai_evo_selected_model") || "gemini-3.5-flash");
+  const [useCustomAiServer, setUseCustomAiServer] = useState<boolean>(() => {
+    const v = localStorage.getItem("ai_evo_use_custom_ai_server");
+    return v === "true";
+  });
+  const [customAiServerUrl, setCustomAiServerUrl] = useState<string>(() => {
+    return localStorage.getItem("ai_evo_custom_ai_url") || "168.110.223.212:7777";
+  });
+  const [temperature, setTemperature] = useState<number>(() => {
+    const v = localStorage.getItem("ai_evo_temperature");
+    return v ? parseFloat(v) : 0.7;
+  });
+  const [topP, setTopP] = useState<number>(() => {
+    const v = localStorage.getItem("ai_evo_top_p");
+    return v ? parseFloat(v) : 0.95;
+  });
+  const [topK, setTopK] = useState<number>(() => {
+    const v = localStorage.getItem("ai_evo_top_k");
+    return v ? parseInt(v) : 40;
+  });
+  const [maxOutputTokens, setMaxOutputTokens] = useState<number>(() => {
+    const v = localStorage.getItem("ai_evo_max_tokens");
+    return v ? parseInt(v) : 2048;
+  });
+  const [systemInstruction, setSystemInstruction] = useState<string>(() => {
+    return localStorage.getItem("ai_evo_system_instruction") || "";
+  });
+
+  // Collapsible state for Hardware stats panel
+  const [isHardwarePanelOpen, setIsHardwarePanelOpen] = useState<boolean>(() => {
+    const v = localStorage.getItem("ai_evo_hardware_panel_open");
+    return v === null ? true : v === "true";
+  });
 
   // GitHub Integration Settings (client-side persisted)
   const [githubRepo, setGithubRepo] = useState<string>(() => localStorage.getItem("ai_evo_github_repo") || "username/my-flutter-app");
@@ -552,40 +655,60 @@ export default function App() {
   const [benchmarkResult, setBenchmarkResult] = useState<{ score: number; mflops: string; grade: string } | null>(null);
   const [isBenchmarking, setIsBenchmarking] = useState(false);
 
-  // Chat states
-  const [chatHistory, setChatHistory] = useState<Record<string, Message[]>>({
-    counter: [
-      {
-        id: "msg-1",
-        sender: "ai",
-        text: "Halo! Saya adalah **AI Evo App Builder**. Proyek *Smart Counter App* Anda telah termuat. Anda bisa meminta saya untuk memodifikasi layout, menambah fungsionalitas, atau mengubah skema warna. Coba tanyakan sesuatu!",
-        timestamp: new Date()
+  // Chat states (client-side persisted)
+  const [chatHistory, setChatHistory] = useState<Record<string, Message[]>>(() => {
+    const saved = localStorage.getItem("ai_evo_chat_history");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        const converted: Record<string, Message[]> = {};
+        Object.keys(parsed).forEach((projId) => {
+          if (Array.isArray(parsed[projId])) {
+            converted[projId] = parsed[projId].map((msg: any) => ({
+              ...msg,
+              timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
+            }));
+          }
+        });
+        return converted;
+      } catch (e) {
+        console.error("Failed to parse saved chat history, using fallback.", e);
       }
-    ],
-    todo: [
-      {
-        id: "msg-1",
-        sender: "ai",
-        text: "Selamat datang di *Evo Task List*! Proyek ini menggunakan penyimpanan state internal untuk mendaftar tugas-tugas Anda. Ingin saya menambahkan fitur prioritas tugas atau kategori?",
-        timestamp: new Date()
-      }
-    ],
-    weather: [
-      {
-        id: "msg-1",
-        sender: "ai",
-        text: "Sistem prakiraan cuaca siap dikembangkan. Anda bisa mencari 'Tokyo', 'London', atau kota apa saja untuk melihat demo simulasi cuaca yang responsif. Beritahu saya fitur apa yang ingin Anda tambahkan selanjutnya!",
-        timestamp: new Date()
-      }
-    ],
-    calculator: [
-      {
-        id: "msg-1",
-        sender: "ai",
-        text: "Kalkulator Matte Black Anda telah siap. Semua operasi matematika (+, -, *, /) sudah aktif. Apakah Anda ingin menambahkan penghitungan persentase atau tombol akar kuadrat?",
-        timestamp: new Date()
-      }
-    ]
+    }
+    return {
+      counter: [
+        {
+          id: "msg-1",
+          sender: "ai",
+          text: "Halo! Saya adalah **AI Evo App Builder**. Proyek *Smart Counter App* Anda telah termuat. Anda bisa meminta saya untuk memodifikasi layout, menambah fungsionalitas, atau mengubah skema warna. Coba tanyakan sesuatu!",
+          timestamp: new Date()
+        }
+      ],
+      todo: [
+        {
+          id: "msg-1",
+          sender: "ai",
+          text: "Selamat datang di *Evo Task List*! Proyek ini menggunakan penyimpanan state internal untuk mendaftar tugas-tugas Anda. Ingin saya menambahkan fitur prioritas tugas atau kategori?",
+          timestamp: new Date()
+        }
+      ],
+      weather: [
+        {
+          id: "msg-1",
+          sender: "ai",
+          text: "Sistem prakiraan cuaca siap dikembangkan. Anda bisa mencari 'Tokyo', 'London', atau kota apa saja untuk melihat demo simulasi cuaca yang responsif. Beritahu saya fitur apa yang ingin Anda tambahkan selanjutnya!",
+          timestamp: new Date()
+        }
+      ],
+      calculator: [
+        {
+          id: "msg-1",
+          sender: "ai",
+          text: "Kalkulator Matte Black Anda telah siap. Semua operasi matematika (+, -, *, /) sudah aktif. Apakah Anda ingin menambahkan penghitungan persentase atau tombol akar kuadrat?",
+          timestamp: new Date()
+        }
+      ]
+    };
   });
 
   const [inputMessage, setInputMessage] = useState("");
@@ -612,16 +735,73 @@ export default function App() {
   const [newProjName, setNewProjName] = useState("");
   const [newProjType, setNewProjType] = useState<Project["type"]>("counter");
 
+  // Custom confirmation modal states
+  const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
+  const [projectToOverwrite, setProjectToOverwrite] = useState<Project | null>(null);
+
   // Reference for scrolling chat
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Active project helper
   const activeProject = projects.find((p) => p.id === activeProjectId) || projects[0];
 
-  // Load real files from physical disk on mount
+  // Load real files from physical disk on mount / change project
   useEffect(() => {
     fetchProjectFiles();
-  }, []);
+  }, [activeProjectId]);
+
+  // Persist Workspace Projects to LocalStorage
+  useEffect(() => {
+    localStorage.setItem("ai_evo_projects", JSON.stringify(projects));
+  }, [projects]);
+
+  // Persist Active Project ID to LocalStorage
+  useEffect(() => {
+    localStorage.setItem("ai_evo_active_project_id", activeProjectId);
+  }, [activeProjectId]);
+
+  // Persist Chat History to LocalStorage
+  useEffect(() => {
+    localStorage.setItem("ai_evo_chat_history", JSON.stringify(chatHistory));
+  }, [chatHistory]);
+
+  // Persist Model Settings to LocalStorage
+  useEffect(() => {
+    localStorage.setItem("ai_evo_selected_model", selectedModel);
+  }, [selectedModel]);
+
+  useEffect(() => {
+    localStorage.setItem("ai_evo_use_custom_ai_server", useCustomAiServer ? "true" : "false");
+  }, [useCustomAiServer]);
+
+  useEffect(() => {
+    localStorage.setItem("ai_evo_custom_ai_url", customAiServerUrl);
+  }, [customAiServerUrl]);
+
+  useEffect(() => {
+    localStorage.setItem("ai_evo_temperature", temperature.toString());
+  }, [temperature]);
+
+  useEffect(() => {
+    localStorage.setItem("ai_evo_top_p", topP.toString());
+  }, [topP]);
+
+  useEffect(() => {
+    localStorage.setItem("ai_evo_top_k", topK.toString());
+  }, [topK]);
+
+  useEffect(() => {
+    localStorage.setItem("ai_evo_max_tokens", maxOutputTokens.toString());
+  }, [maxOutputTokens]);
+
+  useEffect(() => {
+    localStorage.setItem("ai_evo_system_instruction", systemInstruction);
+  }, [systemInstruction]);
+
+  // Persist Hardware Panel State to LocalStorage
+  useEffect(() => {
+    localStorage.setItem("ai_evo_hardware_panel_open", isHardwarePanelOpen ? "true" : "false");
+  }, [isHardwarePanelOpen]);
 
   // Persist GitHub Settings to LocalStorage
   useEffect(() => {
@@ -925,6 +1105,58 @@ export default function App() {
     }
   };
 
+  // Create new project with specific params (for Dashboard support)
+  const handleCreateProjectWithParams = (name: string, type: Project["type"]) => {
+    let defaultDart = TEMPLATE_COUNTER_DART;
+    let desc = "Custom Flutter counter workspace";
+
+    if (type === "todo") {
+      defaultDart = TEMPLATE_TODO_DART;
+      desc = "Custom Task manager workspace";
+    } else if (type === "weather") {
+      defaultDart = TEMPLATE_WEATHER_DART;
+      desc = "Custom Weather monitor workspace";
+    } else if (type === "calculator") {
+      defaultDart = TEMPLATE_CALCULATOR_DART;
+      desc = "Custom Calculator grid workspace";
+    } else if (type === "custom") {
+      defaultDart = `import 'package:flutter/material.dart';\n\nvoid main() => runApp(const CustomApp());\n\nclass CustomApp extends StatelessWidget {\n  const CustomApp({super.key});\n  @override\n  Widget build(BuildContext context) {\n    return const MaterialApp(home: Scaffold(body: Center(child: Text('Custom Workspace ready'))));\n  }\n}`;
+      desc = "Fully blank custom sandbox workspace";
+    }
+
+    const newId = "proj-" + Date.now();
+    const newProj: Project = {
+      id: newId,
+      name: name.trim(),
+      description: desc,
+      mainDart: defaultDart,
+      pubspec: DEFAULT_PUBSPEC,
+      type: type
+    };
+
+    setProjects((prev) => [...prev, newProj]);
+    setChatHistory((prev) => ({
+      ...prev,
+      [newId]: [
+        {
+          id: `msg-init-${Date.now()}`,
+          sender: "ai",
+          text: `Halo! Selamat datang di proyek baru Anda: **${name}**.\n\nSaya telah mengatur struktur proyek dasar. Tuliskan ide aplikasi Anda di chat di bawah, dan saya akan menuliskan kode Flutter lengkapnya untuk Anda!`,
+          timestamp: new Date()
+        }
+      ]
+    }));
+
+    setActiveProjectId(newId);
+    setViewMode("playground");
+    saveProjectToDisk(defaultDart, DEFAULT_PUBSPEC);
+  };
+
+  const handleOpenProjectDashboard = (id: string) => {
+    setActiveProjectId(id);
+    setViewMode("playground");
+  };
+
   // Create new project
   const handleCreateProject = () => {
     if (!newProjName.trim()) return;
@@ -984,13 +1216,39 @@ export default function App() {
       alert("Anda harus mempertahankan minimal satu proyek di workspace.");
       return;
     }
-    if (confirm("Apakah Anda yakin ingin menghapus proyek ini? Tindakan ini tidak dapat dibatalkan.")) {
-      const remaining = projects.filter((p) => p.id !== id);
-      setProjects(remaining);
-      if (activeProjectId === id) {
-        setActiveProjectId(remaining[0].id);
-      }
+    setProjectToDelete(id);
+  };
+
+  const confirmDeleteProject = () => {
+    if (!projectToDelete) return;
+    const remaining = projects.filter((p) => p.id !== projectToDelete);
+    setProjects(remaining);
+    if (activeProjectId === projectToDelete) {
+      setActiveProjectId(remaining[0].id);
     }
+    setProjectToDelete(null);
+  };
+
+  // Import / Load project from remote cloud server kustom
+  const handleImportRemoteProject = (importedProj: Project) => {
+    const exists = projects.some((p) => p.id === importedProj.id);
+    if (exists) {
+      setProjectToOverwrite(importedProj);
+    } else {
+      setProjects((prev) => [...prev, importedProj]);
+      alert(`Proyek '${importedProj.name}' berhasil diimpor dari server remote!`);
+      setActiveProjectId(importedProj.id);
+      saveProjectToDisk(importedProj.mainDart, importedProj.pubspec);
+    }
+  };
+
+  const confirmOverwriteProject = () => {
+    if (!projectToOverwrite) return;
+    setProjects((prev) => prev.map((p) => p.id === projectToOverwrite!.id ? projectToOverwrite! : p));
+    setActiveProjectId(projectToOverwrite.id);
+    saveProjectToDisk(projectToOverwrite.mainDart, projectToOverwrite.pubspec);
+    setProjectToOverwrite(null);
+    alert("Proyek berhasil diperbarui dari server remote!");
   };
 
   // Apply code block extracted from AI response
@@ -1000,6 +1258,9 @@ export default function App() {
     );
     setHasUnsavedChanges(true);
     saveProjectToDisk(code, undefined);
+    
+    // Force a minor state update if necessary, but changing the project
+    // object in setProjects usually triggers re-render of components using activeProject.
   };
 
   // Parse chat content for code blocks
@@ -1071,13 +1332,17 @@ export default function App() {
   };
 
   // Run physical Flutter API or mock chat with Gemini
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputMessage.trim() || isProcessing) return;
-
-    const userText = inputMessage.trim();
-    setInputMessage("");
+  const sendPresetMessage = async (promptText: string) => {
+    if (isProcessing) return;
+    const userText = promptText.trim();
+    if (!userText) return;
     setErrorMessage(null);
+
+    // Auto-update if code is detected
+    if (userText.startsWith("import 'package:flutter/material.dart';")) {
+      setProjects((prev) => prev.map((p) => p.id === activeProjectId ? { ...p, mainDart: userText } : p));
+      saveProjectToDisk(userText, undefined);
+    }
 
     // Append user message
     const userMsg: Message = {
@@ -1123,7 +1388,13 @@ export default function App() {
           pubspec: activeProject.pubspec,
           simulateError: simulateFailure, // Trigger simulated failure for testing
           model: selectedModel,
-          temperature: temperature
+          temperature: temperature,
+          systemInstructionOverride: systemInstruction,
+          topP: topP,
+          topK: topK,
+          maxOutputTokens: maxOutputTokens,
+          useCustomAiServer: useCustomAiServer,
+          customAiServerUrl: customAiServerUrl
         })
       });
 
@@ -1135,29 +1406,60 @@ export default function App() {
       }
 
       const data = await res.json();
+      const replyText = data.reply;
 
-      // Successfully retrieved AI response
-      const aiMsg: Message = {
-        id: "msg-ai-" + Date.now(),
+      // Start streaming simulation
+      setAiStage("Streaming response...");
+      
+      const aiMsgId = "msg-ai-" + Date.now();
+      
+      // Add initial empty message
+      const initialAiMsg: Message = {
+        id: aiMsgId,
         sender: "ai",
-        text: data.reply,
+        text: "",
         timestamp: new Date()
       };
-
+      
       setChatHistory((prev) => ({
         ...prev,
-        [activeProjectId]: [...(prev[activeProjectId] || []), aiMsg]
+        [activeProjectId]: [...(prev[activeProjectId] || []), initialAiMsg]
       }));
 
-      // Check if Dart code block is inside response, auto-highlight preview options if needed
-      if (data.reply.includes("```dart")) {
-        // Find block
-        const match = data.reply.match(/```dart([\s\S]*?)```/);
-        if (match && match[1]) {
-          // Auto update active tab to Code so they see where it can be applied
-          setActiveTab("code");
+      const words = replyText.split(/(\s+)/);
+      let currentWordIdx = 0;
+      let currentText = "";
+
+      const streamInterval = setInterval(() => {
+        if (currentWordIdx < words.length) {
+          currentText += words[currentWordIdx];
+          currentWordIdx++;
+          
+          setChatHistory((prev) => {
+            const list = prev[activeProjectId] || [];
+            return {
+              ...prev,
+              [activeProjectId]: list.map((m) => m.id === aiMsgId ? { ...m, text: currentText } : m)
+            };
+          });
+        } else {
+          clearInterval(streamInterval);
+          setIsProcessing(false);
+          setAiStage("");
+          
+          // If response contains a Dart code block, highlight code tab and update code
+          if (replyText.includes("```dart")) {
+            const match = replyText.match(/```dart([\s\S]*?)```/);
+            if (match && match[1]) {
+              const newCode = match[1].trim();
+              setProjects((prev) => prev.map((p) => p.id === activeProjectId ? { ...p, mainDart: newCode } : p));
+              saveProjectToDisk(newCode, undefined);
+              setActiveTab("code");
+            }
+          }
         }
-      }
+      }, 15); // Fast, fluid streaming
+
     } catch (err: any) {
       clearInterval(stageTimer);
       console.error("AI Generation Error:", err);
@@ -1182,6 +1484,15 @@ export default function App() {
       setIsProcessing(false);
       setAiStage("");
     }
+  };
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputMessage.trim() || isProcessing) return;
+
+    const userText = inputMessage.trim();
+    setInputMessage("");
+    await sendPresetMessage(userText);
   };
 
   // Simulated active app elements inside the mobile preview frame
@@ -1239,10 +1550,171 @@ export default function App() {
     }, 1500);
   };
 
+  if (viewMode === "dashboard") {
+    return (
+      <div className="flex h-screen w-full bg-slate-50 font-sans text-slate-800 antialiased overflow-hidden">
+        <AiStudioAppsDashboard
+          projects={projects}
+          activeProjectId={activeProjectId}
+          setActiveProjectId={setActiveProjectId}
+          chatHistory={chatHistory}
+          onSendMessage={sendPresetMessage}
+          isProcessing={isProcessing}
+          aiStage={aiStage}
+          onCreateProject={handleCreateProjectWithParams}
+          onDeleteProject={handleDeleteProject}
+          onOpenProject={handleOpenProjectDashboard}
+          selectedModel={selectedModel}
+          setSelectedModel={setSelectedModel}
+          temperature={temperature}
+          setTemperature={setTemperature}
+          useCustomAiServer={useCustomAiServer}
+          setUseCustomAiServer={setUseCustomAiServer}
+          customAiServerUrl={customAiServerUrl}
+          setCustomAiServerUrl={setCustomAiServerUrl}
+          onImportProject={handleImportRemoteProject}
+        />
+
+        {/* CUSTOM MODAL FOR PROJECT DELETION CONFIRMATION */}
+        {projectToDelete && (
+          <div id="delete-confirmation-backdrop" className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-[300] p-4">
+            <div id="delete-confirmation-modal" className="bg-white rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden border border-slate-100 flex flex-col p-6 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center gap-3 pb-3 border-b border-slate-100 text-red-650">
+                <div className="p-2 bg-red-50 text-red-600 rounded-xl">
+                  <Trash2 className="h-5 w-5" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900">Hapus Proyek Ini?</h3>
+              </div>
+
+              <div className="py-4">
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Apakah Anda yakin ingin menghapus proyek <span className="font-bold text-slate-850">"{projects.find(p => p.id === projectToDelete)?.name}"</span>?
+                  Semua file kustom, konfigurasi, dan riwayat chat akan dihapus secara permanen dari perangkat ini. Tindakan ini tidak dapat dibatalkan.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2.5 justify-end">
+                <button
+                  id="cancel-delete-btn"
+                  onClick={() => setProjectToDelete(null)}
+                  className="px-4 py-2 hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-500 cursor-pointer transition-all"
+                >
+                  Batal
+                </button>
+                <button
+                  id="confirm-delete-btn"
+                  onClick={confirmDeleteProject}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-bold shadow-md shadow-red-600/10 cursor-pointer transition-all"
+                >
+                  Hapus Permanen
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CUSTOM MODAL FOR PROJECT IMPORT OVERWRITE CONFIRMATION */}
+        {projectToOverwrite && (
+          <div id="overwrite-confirmation-backdrop" className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-[300] p-4">
+            <div id="overwrite-confirmation-modal" className="bg-white rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden border border-slate-100 flex flex-col p-6 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center gap-3 pb-3 border-b border-slate-100 text-amber-500">
+                <div className="p-2 bg-amber-50 rounded-xl">
+                  <Folder className="h-5 w-5" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900">Timpa Proyek?</h3>
+              </div>
+
+              <div className="py-4">
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Proyek dengan ID <span className="font-bold text-slate-800">"{projectToOverwrite.id}"</span> sudah ada di workspace lokal.
+                  Apakah Anda ingin menimpanya dengan data dari server remote? File lokal Anda saat ini akan digantikan.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2.5 justify-end">
+                <button
+                  id="cancel-overwrite-btn"
+                  onClick={() => setProjectToOverwrite(null)}
+                  className="px-4 py-2 hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-500 cursor-pointer transition-all"
+                >
+                  Batal
+                </button>
+                <button
+                  id="confirm-overwrite-btn"
+                  onClick={confirmOverwriteProject}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-white rounded-lg text-xs font-bold shadow-md shadow-amber-500/10 cursor-pointer transition-all"
+                >
+                  Timpa Proyek
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-screen w-full bg-slate-50 font-sans text-slate-800 antialiased overflow-hidden">
-      {/* 1. SIDEBAR FOR PROJECTS NAVIGATION */}
-      <aside className="w-80 bg-slate-900 text-slate-100 flex flex-col border-r border-slate-800 select-none">
+    <div className="flex flex-col h-screen w-full bg-slate-50 font-sans text-slate-800 antialiased overflow-hidden">
+      
+      {/* Mobile Header Tabs (visible only on lg:hidden) */}
+      <div className="lg:hidden h-14 bg-slate-900 text-white border-b border-slate-800 flex items-center justify-between px-4 shrink-0 select-none">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 bg-gradient-to-tr from-indigo-500 to-violet-500 rounded-lg">
+            <Sparkles className="h-4 w-4 text-white animate-pulse" />
+          </div>
+          <span className="text-xs font-bold tracking-tight text-white truncate max-w-[100px] sm:max-w-xs">{activeProject.name}</span>
+        </div>
+        
+        {/* Actions inside Mobile Header */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setViewMode("dashboard")}
+            className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-750 text-indigo-400 text-[10px] font-bold rounded-lg border border-slate-700 flex items-center gap-1 cursor-pointer transition-all"
+            title="Kembali ke Menu Dashboard"
+          >
+            <Sparkles className="h-3 w-3 animate-spin" />
+            <span>Menu</span>
+          </button>
+
+          {/* Mobile Tab Segments switch */}
+          <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
+            <button
+              type="button"
+              onClick={() => setMobileActiveTab("chat")}
+              className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all flex items-center gap-1 ${
+                mobileActiveTab === "chat" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileActiveTab("preview")}
+              className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all flex items-center gap-1 ${
+                mobileActiveTab === "preview" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <Smartphone className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileActiveTab("sidebar")}
+              className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all flex items-center gap-1 ${
+                mobileActiveTab === "sidebar" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <Settings className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-row min-h-0 w-full overflow-hidden">
+        {/* 1. SIDEBAR FOR PROJECTS NAVIGATION */}
+        <aside className={`bg-slate-900 text-slate-100 flex-col border-r border-slate-800 select-none shrink-0 ${
+          mobileActiveTab === "sidebar" ? "flex w-full h-full" : "hidden lg:flex lg:w-80"
+        }`}>
         {/* Header Title with premium layout */}
         <div className="p-5 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -1257,13 +1729,21 @@ export default function App() {
         </div>
 
         {/* Action button to add project */}
-        <div className="p-4">
+        <div className="p-4 space-y-2">
           <button
             onClick={() => setIsNewProjOpen(true)}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-lg font-medium text-xs shadow-md shadow-indigo-600/10 cursor-pointer transition-all hover:translate-y-[-1px]"
           >
             <Plus className="h-4 w-4" />
             New Workspace
+          </button>
+
+          <button
+            onClick={() => setViewMode("dashboard")}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-750 active:bg-slate-850 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold cursor-pointer transition-all"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-indigo-400 animate-pulse" />
+            AI Evo Apps Menu
           </button>
         </div>
 
@@ -1315,7 +1795,7 @@ export default function App() {
           <div className="rounded-lg bg-slate-900/60 p-3.5 border border-slate-800/80 space-y-3">
             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
               <Sliders className="h-4 w-4 text-indigo-400" />
-              <span>AI Studio Configuration</span>
+              <span>AI Evo Configuration</span>
             </div>
 
             {/* Model Selector dropdown */}
@@ -1330,6 +1810,33 @@ export default function App() {
                 <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro (Expert)</option>
                 <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (Lite)</option>
               </select>
+            </div>
+
+            {/* Custom AI Server Option */}
+            <div className="space-y-2 pt-2.5 border-t border-slate-800/60">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={useCustomAiServer}
+                  onChange={(e) => setUseCustomAiServer(e.target.checked)}
+                  className="rounded border-slate-800 bg-slate-950 text-indigo-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                />
+                <span className="text-[11px] font-semibold text-slate-300">AI Server VM (Alternatif API Key)</span>
+              </label>
+
+              {useCustomAiServer && (
+                <div className="space-y-1">
+                  <label className="text-[9px] text-slate-500 uppercase font-mono tracking-wider block">Alamat Server AI</label>
+                  <input
+                    type="text"
+                    value={customAiServerUrl}
+                    onChange={(e) => setCustomAiServerUrl(e.target.value)}
+                    placeholder="e.g. 168.110.223.212:7777"
+                    className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
+                  />
+                  <span className="text-[9px] text-slate-400 block leading-tight">Server ini akan digunakan untuk menghasilkan kode gratis tanpa membutuhkan API key.</span>
+                </div>
+              )}
             </div>
 
             {/* Temperature Slider */}
@@ -1348,6 +1855,66 @@ export default function App() {
                 className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500 focus:outline-none"
               />
             </div>
+
+            {/* Collapsible Advanced Parameters */}
+            <details className="group">
+              <summary className="flex items-center justify-between text-[10px] text-slate-400 hover:text-slate-200 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden py-1 border-t border-slate-800/60 mt-1">
+                <span className="font-mono uppercase tracking-wider font-bold">Advanced Settings</span>
+                <ChevronRight className="h-3 w-3 group-open:rotate-90 transition-transform duration-150 text-slate-500" />
+              </summary>
+              <div className="space-y-3 pt-2.5">
+                {/* Max Output Tokens */}
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-slate-500 font-mono tracking-wider uppercase">Max Tokens</span>
+                    <span className="text-indigo-400 font-mono">{maxOutputTokens}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="100"
+                    max="8192"
+                    step="50"
+                    value={maxOutputTokens}
+                    onChange={(e) => setMaxOutputTokens(parseInt(e.target.value))}
+                    className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* Top P */}
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-slate-500 font-mono tracking-wider uppercase">Top P</span>
+                    <span className="text-indigo-400 font-mono">{topP.toFixed(2)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={topP}
+                    onChange={(e) => setTopP(parseFloat(e.target.value))}
+                    className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* Top K */}
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-slate-500 font-mono tracking-wider uppercase">Top K</span>
+                    <span className="text-indigo-400 font-mono">{topK}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="100"
+                    step="1"
+                    value={topK}
+                    onChange={(e) => setTopK(parseInt(e.target.value))}
+                    className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+            </details>
           </div>
 
           <div className="rounded-lg bg-slate-900/60 p-3 border border-slate-800/80 space-y-2">
@@ -1386,7 +1953,9 @@ export default function App() {
       </aside>
 
       {/* 2. CHAT & CONVERSATIONAL INTERACTION PANEL */}
-      <section className="flex-1 flex flex-col bg-slate-50 border-r border-slate-200 min-w-0">
+      <section className={`flex-1 flex-col bg-slate-50 border-r border-slate-200 min-w-0 h-full ${
+        mobileActiveTab === "chat" ? "flex" : "hidden lg:flex"
+      }`}>
         {/* Workspace Toolbar Header */}
         <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -1408,6 +1977,21 @@ export default function App() {
                 Unsaved Code
               </span>
             )}
+            
+            {/* Real-time Hardware Telemetry Dashboard Panel Toggle */}
+            <button
+              onClick={() => setIsHardwarePanelOpen(!isHardwarePanelOpen)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
+                isHardwarePanelOpen
+                  ? "bg-slate-900 border-slate-800 text-slate-100 hover:bg-slate-800"
+                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+              }`}
+              title="Toggle Real-Time Telemetry Monitor Dashboard"
+            >
+              <Cpu className={`h-3.5 w-3.5 ${isHardwarePanelOpen ? "text-emerald-400 animate-pulse" : "text-slate-400"}`} />
+              <span className="hidden sm:inline">Hardware Monitor</span>
+            </button>
+
             <button
               onClick={() => saveProjectToDisk()}
               disabled={isSaving}
@@ -1426,6 +2010,125 @@ export default function App() {
             </button>
           </div>
         </header>
+
+        {/* COLLAPSIBLE HARDWARE STATS MONITOR PANEL */}
+        {isHardwarePanelOpen && (
+          <div className="bg-slate-900 text-slate-100 border-b border-slate-850 px-6 py-3.5 shadow-md flex flex-col lg:flex-row lg:items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-200">
+            <div className="flex items-center gap-2.5 shrink-0">
+              <div className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Hardware Stats Monitor</span>
+                  <span className="text-[9px] bg-slate-800 text-emerald-400 font-mono px-1 rounded border border-slate-700/60 leading-none py-0.5 font-bold font-mono">LIVE</span>
+                </div>
+                <div className="text-[10px] text-slate-500 font-mono mt-0.5 truncate max-w-xs md:max-w-md">
+                  Renderer: {gpuName}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 flex-1 max-w-3xl">
+              {/* Stat 1: CPU Workload */}
+              <div className="bg-slate-950/60 border border-slate-850 rounded-lg p-2 flex items-center gap-2.5">
+                <div className="p-1.5 bg-indigo-500/10 text-indigo-400 rounded">
+                  <Cpu className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[8px] text-slate-500 font-mono uppercase tracking-wider leading-none mb-1">CPU Cores</div>
+                  <div className="text-xs font-bold font-mono text-slate-200">{cpuThreads} Threads</div>
+                </div>
+              </div>
+
+              {/* Stat 2: Active Memory (RAM) */}
+              <div className="bg-slate-950/60 border border-slate-850 rounded-lg p-2 flex items-center gap-2.5">
+                <div className="p-1.5 bg-violet-500/10 text-violet-400 rounded">
+                  <Layers className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[8px] text-slate-500 font-mono uppercase tracking-wider leading-none mb-1">Device RAM</div>
+                  <div className="text-xs font-bold font-mono text-slate-200">{deviceRam}</div>
+                </div>
+              </div>
+
+              {/* Stat 3: JS Active Heap */}
+              <div className="bg-slate-950/60 border border-slate-850 rounded-lg p-2 flex flex-col justify-center min-w-0">
+                <div className="flex justify-between items-center text-[8px] text-slate-500 font-mono uppercase tracking-wider mb-0.5">
+                  <span>JS Heap</span>
+                  <span className="text-indigo-400">{(jsHeapUsed / 1024 / 1024).toFixed(0)}MB</span>
+                </div>
+                <div className="h-1 bg-slate-800 rounded-full overflow-hidden w-full">
+                  <div 
+                    className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-1000"
+                    style={{ width: `${Math.min(100, (jsHeapUsed / (jsHeapLimit || 1)) * 100 * 10)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Stat 4: FPS & Speed Index */}
+              <div className="bg-slate-950/60 border border-slate-850 rounded-lg p-2 flex items-center gap-2.5">
+                <div className="p-1.5 bg-emerald-500/10 text-emerald-400 rounded shrink-0">
+                  <Gauge className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[8px] text-slate-500 font-mono uppercase tracking-wider leading-none mb-1">Render Rate</div>
+                  <div className="text-xs font-bold font-mono text-emerald-400 flex items-center gap-1">
+                    {fps} FPS
+                    <span className="text-[8px] text-slate-500 font-normal">(16ms)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setIsHardwarePanelOpen(false)}
+              className="text-slate-500 hover:text-slate-300 transition-colors p-1 shrink-0"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* SYSTEM INSTRUCTIONS OVERRIDE BAR - AI STUDIO STYLE */}
+        <div className="bg-white border-b border-slate-200/80 px-6 py-2.5">
+          <details className="group">
+            <summary className="flex items-center justify-between cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-indigo-500 animate-pulse" />
+                <span className="text-xs font-bold text-slate-700">System Instructions Override</span>
+                {systemInstruction ? (
+                  <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 font-mono text-[8px] rounded border border-indigo-100 font-bold">CUSTOMIZED</span>
+                ) : (
+                  <span className="px-1.5 py-0.5 bg-slate-100 text-slate-400 font-mono text-[8px] rounded border border-slate-200">DEFAULT</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 text-slate-400 group-open:rotate-180 transition-transform duration-200">
+                <ChevronRight className="h-4 w-4" />
+              </div>
+            </summary>
+            <div className="pt-3 pb-1.5 space-y-3">
+              <p className="text-[10px] text-slate-500 leading-normal">
+                Tetapkan instruksi sistem khusus untuk mengontrol kepribadian dan gaya pengkodean AI (misalnya: "Gunakan bahasa Indonesia untuk penjelasan", "Output dalam gaya clean architecture").
+              </p>
+              <textarea
+                rows={3}
+                placeholder="Tuliskan instruksi sistem di sini (contoh: Semua penjelasan harus dalam format poin-poin singkat dan sopan)..."
+                value={systemInstruction}
+                onChange={(e) => setSystemInstruction(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 focus:border-indigo-500 focus:outline-none rounded-xl text-xs bg-slate-50 font-mono leading-relaxed"
+              />
+              {systemInstruction && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setSystemInstruction("")}
+                    className="px-2.5 py-1 text-[10px] font-bold text-red-600 hover:bg-red-50 rounded transition-all cursor-pointer"
+                  >
+                    Reset ke Default Persona
+                  </button>
+                </div>
+              )}
+            </div>
+          </details>
+        </div>
 
         {/* Chat History Flow */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50">
@@ -1532,32 +2235,66 @@ export default function App() {
         </div>
 
         {/* Text Input Message Form */}
-        <div className="p-4 bg-white border-t border-slate-200">
-          <form onSubmit={handleSendMessage} className="flex gap-2">
+        <div className="p-4 bg-white border-t border-slate-200 space-y-3">
+          {/* Quick Preset Chips */}
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none select-none">
+            {[
+              { label: "🎨 Tema Dark Mode", text: "Ubah tema desain aplikasi menjadi dark mode bernuansa gelap matte yang elegan." },
+              { label: "⚡ Optimalkan RAM", text: "Tambahkan manajemen penyimpanan lokal state efisien dan optimalkan RAM." },
+              { label: "➕ Tambah Tombol Aksi", text: "Tambahkan tombol aksi kustom (floating action button) dengan ikon menarik." },
+              { label: "🐞 Perbaiki Struktur", text: "Tinjau kode lib/main.dart di atas, perbaiki bugs dan bersihkan sisa imports." }
+            ].map((chip, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => sendPresetMessage(chip.text)}
+                disabled={isProcessing}
+                className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 disabled:opacity-50 text-[10px] font-semibold text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg shrink-0 cursor-pointer transition-all hover:translate-y-[-0.5px]"
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+
+          <form onSubmit={handleSendMessage} className="flex flex-col gap-2 bg-slate-50 border border-slate-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 rounded-xl p-1.5 transition-all">
             <input
               type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               disabled={isProcessing}
               placeholder={isProcessing ? "AI Evo sedang mengetik kode..." : "Modifikasi layout, tambahkan tombol, ubah tema warna..."}
-              className="flex-1 px-4 py-2.5 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none rounded-xl text-xs bg-slate-50"
+              className="px-3 py-2 w-full focus:outline-none rounded-lg text-xs bg-transparent text-slate-800 placeholder-slate-400"
             />
-            <button
-              type="submit"
-              disabled={isProcessing || !inputMessage.trim()}
-              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 disabled:bg-slate-200 text-white rounded-xl shadow-lg shadow-indigo-600/10 cursor-pointer transition-all flex items-center justify-center shrink-0"
-            >
-              <Send className="h-4 w-4" />
-            </button>
+            
+            <div className="flex items-center justify-between px-3 pb-1 border-t border-slate-100 pt-2 text-[9px] text-slate-400 font-mono select-none">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="h-3 w-3 text-indigo-500 shrink-0" />
+                <span>{inputMessage.length} karakter • ~{Math.ceil(inputMessage.length / 3.8)} tokens</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span>Context: ~{Math.ceil(((chatHistory[activeProjectId] || []).reduce((acc, m) => acc + m.text.length, 0) + inputMessage.length) / 3.8)} / 1M tokens</span>
+                <button
+                  type="submit"
+                  disabled={isProcessing || !inputMessage.trim()}
+                  className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 disabled:bg-slate-200 text-white rounded-lg shadow-md hover:shadow-lg disabled:shadow-none cursor-pointer transition-all flex items-center justify-center shrink-0 font-bold"
+                >
+                  <Send className="h-3 w-3 mr-1" />
+                  Kirim
+                </button>
+              </div>
+            </div>
           </form>
-          <div className="text-[10px] text-slate-400 text-center mt-2">
-            AI Evo Builder mendukung instruksi bahasa Indonesia dan Inggris.
+          
+          <div className="text-[9px] text-slate-400 text-center font-mono uppercase tracking-wider">
+            {useCustomAiServer ? "AI Server VM Mode Active • Unlimited generations" : "AI Evo API Playground Mode Enabled • Multi-turn active context"}
           </div>
         </div>
       </section>
 
       {/* 3. CODES & INTERACTIVE SMARTPHONE APP PREVIEW */}
-      <section className="w-[540px] bg-white border-l border-slate-200 flex flex-col min-w-0 h-full">
+      <section className={`bg-white border-l border-slate-200 flex-col min-w-0 h-full ${
+        mobileActiveTab === "preview" ? "flex w-full" : "hidden lg:flex lg:w-[540px]"
+      }`}>
         {/* Toggle subtabs */}
         <div className="h-16 border-b border-slate-200 flex items-center justify-between px-3.5 gap-1 select-none overflow-x-auto scrollbar-none">
           <button
@@ -1946,6 +2683,79 @@ export default function App() {
           )}
         </div>
       </section>
+      </div>
+
+      {/* CUSTOM MODAL FOR PROJECT DELETION CONFIRMATION */}
+      {projectToDelete && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden border border-slate-100 flex flex-col p-6 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 pb-3 border-b border-slate-100 text-red-650">
+              <div className="p-2 bg-red-50 text-red-600 rounded-xl">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-900">Hapus Proyek Ini?</h3>
+            </div>
+
+            <div className="py-4">
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Apakah Anda yakin ingin menghapus proyek <span className="font-bold text-slate-850">"{projects.find(p => p.id === projectToDelete)?.name}"</span>?
+                Semua file kustom, konfigurasi, dan riwayat chat akan dihapus secara permanen dari perangkat ini. Tindakan ini tidak dapat dibatalkan.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2.5 justify-end">
+              <button
+                onClick={() => setProjectToDelete(null)}
+                className="px-4 py-2 hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-500 cursor-pointer transition-all"
+              >
+                Batal
+              </button>
+              <button
+                onClick={confirmDeleteProject}
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-bold shadow-md shadow-red-600/10 cursor-pointer transition-all"
+              >
+                Hapus Permanen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM MODAL FOR PROJECT IMPORT OVERWRITE CONFIRMATION */}
+      {projectToOverwrite && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden border border-slate-100 flex flex-col p-6 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 pb-3 border-b border-slate-100 text-amber-500">
+              <div className="p-2 bg-amber-50 rounded-xl">
+                <Folder className="h-5 w-5" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-900">Timpa Proyek?</h3>
+            </div>
+
+            <div className="py-4">
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Proyek dengan ID <span className="font-bold text-slate-800">"{projectToOverwrite.id}"</span> sudah ada di workspace lokal.
+                Apakah Anda ingin menimpanya dengan data dari server remote? File lokal Anda saat ini akan digantikan.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2.5 justify-end">
+              <button
+                onClick={() => setProjectToOverwrite(null)}
+                className="px-4 py-2 hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-500 cursor-pointer transition-all"
+              >
+                Batal
+              </button>
+              <button
+                onClick={confirmOverwriteProject}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-white rounded-lg text-xs font-bold shadow-md shadow-amber-500/10 cursor-pointer transition-all"
+              >
+                Timpa Proyek
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 4. MODAL FOR NEW WORKSPACE CREATION */}
       {isNewProjOpen && (
