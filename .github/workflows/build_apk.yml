@@ -1,6 +1,6 @@
 name: Build APK
 
-# Re-trigger Github sync
+# Re-trigger Github sync 2
 on:
   push:
     branches: [ main ]
@@ -18,9 +18,6 @@ jobs:
         run: |
           rm -rf android
           flutter create . --platforms android
-          find android -name "build.gradle*" -exec sed -i 's/flutter.compileSdkVersion/36/g' {} +
-          find android -name "build.gradle*" -exec sed -i 's/flutter.minSdkVersion/24/g' {} +
-          find android -name "build.gradle*" -exec sed -i 's/flutter.targetSdkVersion/36/g' {} +
           sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
       - run: flutter pub get
       - run: flutter build apk --release
