@@ -17,6 +17,9 @@ jobs:
         run: |
           rm -rf android
           flutter create . --platforms android
+          find android -name "build.gradle*" -exec sed -i 's/flutter.compileSdkVersion/35/g' {} +
+          find android -name "build.gradle*" -exec sed -i 's/flutter.minSdkVersion/24/g' {} +
+          find android -name "build.gradle*" -exec sed -i 's/flutter.targetSdkVersion/35/g' {} +
           sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
       - run: flutter pub get
       - run: flutter build apk --release
