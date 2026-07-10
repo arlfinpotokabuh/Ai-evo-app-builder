@@ -25,19 +25,14 @@ class _BrowserScreenState extends State<BrowserScreen> {
     super.initState();
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..loadRequest(Uri.parse('https://google.com'));
+      ..loadRequest(Uri.parse('https://ais-dev-ybd3jbe7c4t4q6mib2dqqq-915540977151.asia-southeast1.run.app'));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: TextField(
-          controller: _urlController,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(border: InputBorder.none),
-          onSubmitted: (url) => _controller.loadRequest(Uri.parse(url.startsWith('http') ? url : 'https://$url')),
-        ),
+        title: const Text('AI Evo App Builder'),
         actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: () => _controller.reload())],
       ),
       body: WebViewWidget(controller: _controller),
