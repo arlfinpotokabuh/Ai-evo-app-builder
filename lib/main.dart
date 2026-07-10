@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-
-// Added a comment to trigger a change
-import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 import 'services/auth_service.dart';
 import 'auth/login_screen.dart';
 
@@ -48,7 +44,6 @@ class BrowserScreen extends StatefulWidget {
   @override
   State<BrowserScreen> createState() => _BrowserScreenState();
 }
-...
 
 class _BrowserScreenState extends State<BrowserScreen> {
   late final WebViewController _controller;
