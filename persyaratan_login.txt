@@ -1,0 +1,30 @@
+PERSYARATAN & ALUR IMPLEMENTASI LOGIN MANDIRI (AUTHENTICATION)
+
+Untuk mengubah dari login berbasis akun Google (atau SSO pihak ketiga) ke sistem login mandiri (email/password), Anda memerlukan komponen berikut:
+
+1. DATABASE
+   - Perlu database (misal: Firestore, PostgreSQL) untuk menyimpan:
+     - ID Pengguna (User ID)
+     - Email (unique)
+     - Password (wajib di-hash, jangan simpan teks biasa!)
+     - Data profil lainnya (tgl daftar, last login, dll)
+
+2. BACKEND (SERVER-SIDE)
+   - API Endpoint untuk Pendaftaran: Menerima email & password, memvalidasi input, melakukan hashing password, lalu menyimpan ke database.
+   - API Endpoint untuk Login: Menerima email & password, mencocokkan dengan data di database, lalu membuat token akses (JWT - JSON Web Token).
+   - API Endpoint untuk Reset Password: Membutuhkan layanan email (SMTP) untuk mengirim link reset password ke email pengguna.
+
+3. FRONTEND (APP)
+   - Halaman Login (UI Email & Password)
+   - Halaman Daftar (UI Email & Password)
+   - Logika pengelolaan Token: Aplikasi harus menyimpan token JWT yang diberikan server (setelah login sukses) agar pengguna tidak perlu login ulang setiap membuka aplikasi.
+   - Penyimpanan Aman (Secure Storage): Menggunakan teknik enkripsi penyimpanan (seperti 'flutter_secure_storage' di Flutter) untuk menyimpan token agar tidak bisa diakses aplikasi lain.
+
+4. ALUR LUPA PASSWORD (PENTING)
+   - Jika lupa password, pengguna tidak bisa login. Aplikasi harus menyediakan alur 'Lupa Password'.
+   - Butuh layanan SMTP (seperti SendGrid, Mailgun, atau Gmail API) untuk mengirim email verifikasi/reset link.
+
+RINGKASAN KEAMANAN:
+- Gunakan HTTPS di server Anda.
+- Password harus di-hash (misal menggunakan bcrypt) di sisi server sebelum disimpan.
+- Token JWT harus memiliki masa berlaku (expiration) untuk keamanan.

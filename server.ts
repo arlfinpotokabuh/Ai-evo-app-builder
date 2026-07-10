@@ -3,12 +3,39 @@ import path from "path";
 import fs from "fs/promises";
 import { GoogleGenAI } from "@google/genai";
 import { createServer as createViteServer } from "vite";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
 const PORT = 3000;
+const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-change-me";
+
+// In-memory user store (prototype only!)
+const users: any[] = [];
 
 async function startServer() {
   const app = express();
   app.use(express.json());
+
+  // --- Auth Endpoints ---
+  app.post("/auth/register", async (req, res) => {
+    try {
+      const { email, password, full_name } = req.body;
+      if (users.find(u => u.email === email)) return res.status(400).json({ error: "Email sudah terdaftar" });
+      const hashedPassword = await bcrypt.hash(password, 10);
+      users.push({ id: users.length + 1, email, password: hashedPassword, full_name });
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.post("/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      const user = users.find(u => u.email === email);
+      if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ error: "Email atau password salah" });
+      const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
+      res.json({ token, user: { id: user.id, email: user.email, full_name: user.full_name } });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+  });
 
   // Initialize Gemini API
   const apiKey = process.env.GEMINI_API_KEY;
