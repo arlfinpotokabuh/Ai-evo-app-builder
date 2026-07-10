@@ -1,4 +1,4 @@
-name: Build APK 3
+name: Build APK
 
 on:
   push:
@@ -9,17 +9,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-node@v3
         with:
-          java-version: '17'
-          distribution: 'zulu'
-      - uses: subosito/flutter-action@v2
+          node-version: '20'
+      - run: npm install
+      - run: npm run build
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           channel: stable
       - name: Setup Android Project
         run: |
           rm -rf android
           flutter create . --platforms android
+          mkdir -p assets/web
+          cp -r dist/* assets/web/
           sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
       - run: flutter pub get
       - run: flutter build apk --release

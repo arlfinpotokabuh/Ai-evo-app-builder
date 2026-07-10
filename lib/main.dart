@@ -18,14 +18,13 @@ class BrowserScreen extends StatefulWidget {
 
 class _BrowserScreenState extends State<BrowserScreen> {
   late final WebViewController _controller;
-  final TextEditingController _urlController = TextEditingController(text: 'https://google.com');
 
   @override
   void initState() {
     super.initState();
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..loadRequest(Uri.parse('https://ais-dev-ybd3jbe7c4t4q6mib2dqqq-915540977151.asia-southeast1.run.app'));
+      ..loadFlutterAsset('assets/web/index.html');
   }
 
   @override
