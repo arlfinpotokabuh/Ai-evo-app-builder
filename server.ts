@@ -397,7 +397,9 @@ dependencies:
         testModel,
         "You are a connection tester. Reply with exactly 'Koneksi Sukses!' or any simple positive acknowledgement.",
         "Ping",
-        0.1
+        0.1,
+        "test-user",
+        "test-platform"
       );
       
       res.json({ success: true, message: "Koneksi berhasil!", reply });
