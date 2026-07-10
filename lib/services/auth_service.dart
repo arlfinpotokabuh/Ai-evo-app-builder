@@ -20,13 +20,22 @@ class AuthService {
     return false;
   }
 
-  Future<bool> register(String email, String password, String fullName) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/register'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': email, 'password': password, 'full_name': fullName}),
-    );
-    return response.statusCode == 200;
+  Future<String?> register(String email, String password, String fullName) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password, 'full_name': fullName}),
+      );
+      if (response.statusCode == 200) {
+        return null; // Success
+      } else {
+        final data = jsonDecode(response.body);
+        return data['error'] ?? 'Pendaftaran gagal';
+      }
+    } catch (e) {
+      return 'Gagal terhubung ke server';
+    }
   }
 
   Future<void> logout() async {

@@ -16,6 +16,15 @@ async function startServer() {
   const app = express();
   app.use(express.json());
 
+  // Logging middleware
+  app.use((req, res, next) => {
+    console.log(`[REQUEST] ${req.method} ${req.url}`);
+    if (req.body && Object.keys(req.body).length > 0) {
+      console.log(`[BODY] ${JSON.stringify(req.body)}`);
+    }
+    next();
+  });
+
   // --- Auth Endpoints ---
   app.post("/auth/register", async (req, res) => {
     try {
@@ -33,7 +42,7 @@ async function startServer() {
       const user = users.find(u => u.email === email);
       if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ error: "Email atau password salah" });
       const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
-      res.json({ token, user: { id: user.id, email: user.email, full_name: user.full_name } });
+      res.json({ access_token: token, user_id: user.id, email: user.email, full_name: user.full_name });
     } catch (err: any) { res.status(500).json({ error: err.message }); }
   });
 

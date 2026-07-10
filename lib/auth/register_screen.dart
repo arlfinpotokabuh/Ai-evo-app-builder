@@ -26,11 +26,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
             TextField(controller: _passwordController, decoration: const InputDecoration(labelText: 'Password'), obscureText: true),
             const SizedBox(height: 20),
             ElevatedButton(onPressed: () async {
-              if (await _authService.register(_emailController.text, _passwordController.text, _nameController.text)) {
+              final error = await _authService.register(_emailController.text, _passwordController.text, _nameController.text);
+              if (error == null) {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pendaftaran berhasil, silakan login')));
                 Navigator.pop(context);
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pendaftaran gagal')));
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
               }
             }, child: const Text('Daftar')),
           ],
