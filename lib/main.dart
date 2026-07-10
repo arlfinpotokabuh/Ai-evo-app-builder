@@ -11,14 +11,13 @@ import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:path/path.dart';
+import 'package:path/path.dart' show join;
 
 // --- Pastikan URL ini diganti dengan URL Cloudflare Tunnel Anda ---
 const String baseUrl = "https://diversity-recommended-spine-helmet.trycloudflare.com";
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (Platform.isAndroid) await AndroidWebViewController.platform;
   runApp(const MaterialApp(home: AuthWrapper()));
 }
 
@@ -74,7 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(this.context!).showSnackBar(const SnackBar(content: Text('Email dan password wajib diisi')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Email dan password wajib diisi')));
       return;
     }
     setState(() => _isLoading = true);
@@ -93,11 +92,11 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AppBuilderHome()));
       } else {
         final err = jsonDecode(response.body);
-        ScaffoldMessenger.of(this.context!).showSnackBar(SnackBar(content: Text(err['error'] ?? 'Login gagal')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err['error'] ?? 'Login gagal')));
         setState(() => _isLoading = false);
       }
     } catch (e) {
-      ScaffoldMessenger.of(this.context!).showSnackBar(SnackBar(content: Text('Koneksi error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Koneksi error: $e')));
       setState(() => _isLoading = false);
     }
   }
@@ -159,7 +158,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     if (name.isEmpty || email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(this.context!).showSnackBar(const SnackBar(content: Text('Semua field wajib diisi')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Semua field wajib diisi')));
       return;
     }
     setState(() => _isLoading = true);
@@ -170,14 +169,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         body: jsonEncode({'full_name': name, 'email': email, 'password': password}),
       ).timeout(const Duration(seconds: 30));
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(this.context!).showSnackBar(const SnackBar(content: Text('Registrasi berhasil, silakan login')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Registrasi berhasil, silakan login')));
         Navigator.pop(context);
       } else {
         final err = jsonDecode(response.body);
-        ScaffoldMessenger.of(this.context!).showSnackBar(SnackBar(content: Text(err['error'] ?? 'Registrasi gagal')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err['error'] ?? 'Registrasi gagal')));
       }
     } catch (e) {
-      ScaffoldMessenger.of(this.context!).showSnackBar(SnackBar(content: Text('Koneksi error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Koneksi error: $e')));
     } finally {
       setState(() => _isLoading = false);
     }
@@ -291,7 +290,7 @@ class _AppBuilderHomeState extends State<AppBuilderHome> {
     Map<String, dynamic> data = {'messages': _messages, 'preview': _previewHtml};
     await _db!.update('projects', {'data': jsonEncode(data), 'updated_at': DateTime.now().millisecondsSinceEpoch},
         where: 'id = ?', whereArgs: [_currentProject!['id']]);
-    ScaffoldMessenger.of(this.context!).showSnackBar(const SnackBar(content: Text("💾 Proyek tersimpan di perangkat")));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("💾 Proyek tersimpan di perangkat")));
   }
 
   Future<void> _deleteProject(int id) async {
@@ -312,7 +311,7 @@ class _AppBuilderHomeState extends State<AppBuilderHome> {
   Future<void> _sendPrompt(String prompt) async {
     if (prompt.isEmpty) return;
     if (_currentProject == null) {
-      ScaffoldMessenger.of(this.context!).showSnackBar(const SnackBar(content: Text("⚠️ Silakan buat atau pilih proyek terlebih dahulu.")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("⚠️ Silakan buat atau pilih proyek terlebih dahulu.")));
       return;
     }
     setState(() {
@@ -359,19 +358,19 @@ class _AppBuilderHomeState extends State<AppBuilderHome> {
     try {
       var data = jsonDecode(_currentProject!['data']);
       List files = data['files'] ?? [];
-      if (files.isEmpty) { ScaffoldMessenger.of(this.context!).showSnackBar(const SnackBar(content: Text("Tidak ada file untuk diekspor"))); return; }
+      if (files.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Tidak ada file untuk diekspor"))); return; }
       final archive = Archive();
       for (var file in files) {
         archive.addFile(ArchiveFile(file['path'], file['content'].length, utf8.encode(file['content'])));
       }
       final tempDir = await getTemporaryDirectory();
       final zipPath = "${tempDir.path}/${_currentProject!['name']}_build.zip";
-      final outputStream = File(zipPath).openWrite();
-      final encoder = ZipEncoder();
-      encoder.encode(archive, outputStream);
-      await outputStream.close();
+      final zipData = ZipEncoder().encode(archive);
+      if (zipData != null) {
+        await File(zipPath).writeAsBytes(zipData);
+      }
       await Share.shareXFiles([XFile(zipPath)], text: "Source code dari ${_currentProject!['name']}");
-    } catch (e) { ScaffoldMessenger.of(this.context!).showSnackBar(SnackBar(content: Text("❌ Gagal ekspor: $e"))); }
+    } catch (e) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("❌ Gagal ekspor: $e"))); }
   }
 
   Future<void> _logout() async {
